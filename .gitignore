@@ -1,0 +1,40 @@
+# ---- 运行时与产物（体积大，走 Release 分发，不进 Git）----
+runtime/
+dist/
+build/appdir/
+build/runtime/
+*.AppImage
+*.AppImage.sha256
+
+# ---- OFD 依赖 jar 与编译产物（用 modules/ofd/build.sh 重新生成）----
+modules/ofd/lib/jars/
+modules/ofd/lib/classes/
+
+# ---- Python / Node 缓存 ----
+__pycache__/
+*.py[cod]
+.pytest_cache/
+node_modules/
+*.egg-info/
+
+# ---- 测试与临时目录 ----
+.tmp/
+.data/
+test/output/
+logs/
+*.log
+
+# ---- 用户文档与下载的源码包（不属于仓库内容）----
+公文*
+*.wps
+*.ofd
+*.zip
+*.deb
+*.tar.gz
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp

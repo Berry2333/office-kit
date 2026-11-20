@@ -1,0 +1,33 @@
+{
+  "title": "2026 年第一季度工作报告",
+  "subtitle": "office-kit 自测",
+  "author": "office-kit",
+  "subject": "季度总结",
+  "font": "Noto Sans CJK SC",
+  "headings": [
+    {"level": 1, "text": "一、总体进展"},
+    {"level": 2, "text": "1.1 关键指标"}
+  ],
+  "paragraphs": [
+    "本季度完成离线办公套件 v1.0 的集成，覆盖 Word、Excel、PowerPoint。",
+    {
+      "text": "重点：转换、渲染、公式重算全部离线可用。",
+      "bold": true,
+      "color": "C00000",
+      "align": "center"
+    },
+    {"text": "所有能力通过 office-kit 统一调用。", "bullet": true},
+    {"text": "支持中文与空格路径。", "bullet": true}
+  ],
+  "tables": [
+    {
+      "headers": ["模块", "状态", "说明"],
+      "rows": [
+        ["office", "完成", "convert / render / recalc / info / create"],
+        ["pdf", "进行中", "Stirling-PDF"],
+        ["ocr", "计划中", "RapidOCR"]
+      ],
+      "widths": [3, 2, 7]
+    }
+  ]
+}

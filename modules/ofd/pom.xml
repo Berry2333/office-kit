@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>ofdkit</groupId>
+  <artifactId>ofd</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+  <name>office-kit ofd module</name>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <maven.compiler.release>17</maven.compiler.release>
+    <ofdrw.version>2.5.1</ofdrw.version>
+  </properties>
+
+  <!-- 构建期联网；运行时全部 jar 已在 modules/ofd/lib/jars/ -->
+  <repositories>
+    <repository>
+      <id>aliyun-public</id>
+      <url>https://maven.aliyun.com/repository/public</url>
+    </repository>
+    <repository>
+      <id>central</id>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </repository>
+  </repositories>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.ofdrw</groupId>
+      <artifactId>ofdrw-converter</artifactId>
+      <version>${ofdrw.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ofdrw</groupId>
+      <artifactId>ofdrw-layout</artifactId>
+      <version>${ofdrw.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ofdrw</groupId>
+      <artifactId>ofdrw-core</artifactId>
+      <version>${ofdrw.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ofdrw</groupId>
+      <artifactId>ofdrw-reader</artifactId>
+      <version>${ofdrw.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ofdrw</groupId>
+      <artifactId>ofdrw-tool</artifactId>
+      <version>${ofdrw.version}</version>
+    </dependency>
+    <!-- 静默 ofdrw 内部的 slf4j 日志（无绑定时会向 stderr 打印告警） -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-nop</artifactId>
+      <version>1.7.36</version>
+      <scope>runtime</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <sourceDirectory>src</sourceDirectory>
+    <outputDirectory>lib/classes</outputDirectory>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <release>${maven.compiler.release}</release>
+          <encoding>UTF-8</encoding>
+          <showWarnings>true</showWarnings>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.8.1</version>
+        <executions>
+          <execution>
+            <id>copy-dependencies</id>
+            <phase>package</phase>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.basedir}/lib/jars</outputDirectory>
+              <includeScope>runtime</includeScope>
+              <overWriteReleases>false</overWriteReleases>
+              <overWriteSnapshots>false</overWriteSnapshots>
+              <useBaseVersion>true</useBaseVersion>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

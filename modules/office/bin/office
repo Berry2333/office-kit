@@ -1,0 +1,52 @@
+#!/bin/bash
+# office-kit office 模块入口：Word / Excel / PowerPoint 转换、渲染、重算、摘要、生成。
+# 由 bin/office-kit 调用，也可直接执行：modules/office/bin/office <子命令> ...
+set -u
+
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+MODULE_DIR="$(cd "$(dirname "$_self")/.." && pwd)"
+ROOT_DIR="$(cd "${MODULE_DIR}/../.." && pwd)"
+
+# 契约变量优先；独立运行时按脚本相对路径回退（不覆盖调用方已导出的值）。
+export OFFICE_KIT_ROOT="${OFFICE_KIT_ROOT:-${ROOT_DIR}}"
+export OFFICE_KIT_RUNTIME="${OFFICE_KIT_RUNTIME:-${ROOT_DIR}/runtime}"
+: "${OFFICE_KIT_DATA:=${XDG_DATA_HOME:-${HOME}/.local/share}/office-kit}"
+export OFFICE_KIT_DATA
+export OFFICE_KIT_CACHE="${OFFICE_KIT_CACHE:-${OFFICE_KIT_DATA}/cache}"
+export OFFICE_KIT_LOGS="${OFFICE_KIT_LOGS:-${OFFICE_KIT_DATA}/logs}"
+export OFFICE_KIT_LANG="${OFFICE_KIT_LANG:-zh_CN}"
+export OFFICE_KIT_PY="${OFFICE_KIT_PY:-${OFFICE_KIT_RUNTIME}/python/bin/python3}"
+export OFFICE_KIT_PY_SITE="${OFFICE_KIT_PY_SITE:-${OFFICE_KIT_RUNTIME}/python/lib/python3.12/site-packages}"
+export OFFICE_KIT_JAVA="${OFFICE_KIT_JAVA:-${OFFICE_KIT_RUNTIME}/jre/bin/java}"
+export OFFICE_KIT_NODE="${OFFICE_KIT_NODE:-${OFFICE_KIT_RUNTIME}/node/bin/node}"
+export OFFICE_KIT_NODE_MODULES="${OFFICE_KIT_NODE_MODULES:-${OFFICE_KIT_RUNTIME}/node/lib/node_modules}"
+export OFFICE_KIT_STIRLING="${OFFICE_KIT_STIRLING:-${OFFICE_KIT_RUNTIME}/stirling}"
+export OFFICE_KIT_MODELS="${OFFICE_KIT_MODELS:-${OFFICE_KIT_RUNTIME}/models}"
+
+mkdir -p "${OFFICE_KIT_DATA}" "${OFFICE_KIT_CACHE}" "${OFFICE_KIT_LOGS}" 2>/dev/null || true
+
+CLI_PY="${MODULE_DIR}/lib/office_cli.py"
+if [ ! -f "${CLI_PY}" ]; then
+  echo "office: 模块文件缺失：${CLI_PY}" >&2
+  echo "修复: 重新解压 office-kit 或检查安装是否完整。" >&2
+  exit 3
+fi
+
+if [ ! -x "${OFFICE_KIT_PY}" ]; then
+  echo "office: 运行时缺少 Python：${OFFICE_KIT_PY}" >&2
+  echo "修复: 重新解压 office-kit 运行时，或设置 OFFICE_KIT_PY 指向 Python 3。" >&2
+  exit 3
+fi
+
+# AppImage 挂载到任意路径时，用 PYTHONHOME 固定解释器前缀（仅默认运行时 Python）。
+if [ "${OFFICE_KIT_PY}" = "${OFFICE_KIT_RUNTIME}/python/bin/python3" ] && [ -d "${OFFICE_KIT_RUNTIME}/python/lib/python3.12" ]; then
+  export PYTHONHOME="${OFFICE_KIT_RUNTIME}/python"
+fi
+
+# 模块私有依赖（pypdf）优先；运行时 site-packages 作为后备。
+PYTHONPATH="${MODULE_DIR}/lib/vendor:${OFFICE_KIT_PY_SITE}${PYTHONPATH:+:${PYTHONPATH}}"
+export PYTHONPATH
+export PYTHONUTF8=1
+export PYTHONIOENCODING=utf-8
+
+exec "${OFFICE_KIT_PY}" "${CLI_PY}" "$@"

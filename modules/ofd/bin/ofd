@@ -1,0 +1,107 @@
+#!/bin/bash
+# ofd — office-kit 的 OFD 版式文档工具入口（Java / ofdrw）
+# 由 bin/office-kit 调用：office-kit ofd <子命令> ...
+set -u
+
+# ---------------------------------------------------------------------------
+# 定位模块根目录（仓库直接运行时为 modules/ofd）
+# ---------------------------------------------------------------------------
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+MODULE_DIR="$(cd "$(dirname "$_self")/.." && pwd)"
+KIT_ROOT="$(cd "${MODULE_DIR}/../.." && pwd)"
+
+RUNTIME="${OFFICE_KIT_RUNTIME:-${KIT_ROOT}/runtime}"
+JAVA="${OFFICE_KIT_JAVA:-${RUNTIME}/jre/bin/java}"
+CLASSES="${MODULE_DIR}/lib/classes"
+JARS="${MODULE_DIR}/lib/jars"
+
+if [ ! -x "${JAVA}" ]; then
+  cat >&2 <<EOF
+ofd: 找不到 Java 运行时: ${JAVA}
+     请确认 runtime/jre 已就位，或设置 OFFICE_KIT_JAVA 指向 java 可执行文件。
+EOF
+  exit 3
+fi
+
+if [ ! -d "${CLASSES}" ] || [ -z "$(ls -A "${JARS}" 2>/dev/null)" ]; then
+  cat >&2 <<EOF
+ofd: 模块尚未构建（缺少 ${CLASSES} 或 ${JARS}/*.jar）。
+     请在联网环境执行: bash modules/ofd/build.sh
+EOF
+  exit 3
+fi
+
+# ---------------------------------------------------------------------------
+# 临时目录：OFDReader 会解压到 java.io.tmpdir，必须落在可写数据目录内
+# ---------------------------------------------------------------------------
+if [ -n "${OFFICE_KIT_CACHE:-}" ]; then
+  CACHE_DIR="${OFFICE_KIT_CACHE}"
+else
+  CACHE_DIR="${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/office-kit"
+fi
+TMP_DIR="${CACHE_DIR}/ofd/tmp"
+mkdir -p "${TMP_DIR}" 2>/dev/null || TMP_DIR="${TMPDIR:-/tmp}"
+# 清理上次异常退出残留的解压目录（仅本模块前缀）
+find "${TMP_DIR}" -maxdepth 1 -type d -name 'ofd-tmp-*' -mmin +120 -exec rm -rf {} + 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
+# 方向自检：to-pdf 只能吃 OFD，from-pdf 只能吃 PDF。给错方向时直接提示正确命令，
+# 而不是把 PDF 丢给 ZIP 解析器报 "Cannot find zip signature"。
+# ---------------------------------------------------------------------------
+ofd_first_arg() {
+  # 找到 --input 的第一个值（兼容 --input=X 与 --input X）
+  local prev=""
+  for arg in "$@"; do
+    case "$arg" in
+      --input=*) printf '%s' "${arg#--input=}"; return 0 ;;
+      --input) prev="--input" ;;
+      *)
+        if [ "$prev" = "--input" ]; then printf '%s' "$arg"; return 0; fi
+        prev="" ;;
+    esac
+  done
+  return 1
+}
+
+_ofd_cmd="${1:-}"
+if [ -n "${_ofd_cmd}" ]; then
+  shift || true
+  _ofd_input="$(ofd_first_arg "$@" 2>/dev/null || true)"
+  if [ -n "${_ofd_input}" ] && [ -f "${_ofd_input}" ]; then
+    _ofd_magic="$(head -c 5 "${_ofd_input}" 2>/dev/null || true)"
+    case "${_ofd_cmd}" in
+      to-pdf|to-image|to-text|to-html|info|merge)
+        if [ "${_ofd_magic}" = "%PDF-" ]; then
+          cat >&2 <<EOF
+ofd: 输入是 PDF（${_ofd_input}），不是 OFD。
+     这个方向请用：office-kit ofd from-pdf --input "${_ofd_input}" --output 输出.ofd
+     PDF 的合并/拆分/加密/抽文本等请用：office-kit pdf --help
+EOF
+          exit 2
+        fi ;;
+      from-pdf)
+        if [ "${_ofd_magic}" != "%PDF-" ]; then
+          cat >&2 <<EOF
+ofd: from-pdf 需要 PDF 输入，但 ${_ofd_input} 不是 PDF（开头不是 %PDF-）。
+     OFD 转 PDF 请用：office-kit ofd to-pdf --input "${_ofd_input}" --output 输出.pdf
+EOF
+          exit 2
+        fi ;;
+    esac
+  fi
+  set -- "${_ofd_cmd}" "$@"
+fi
+
+# OFFICE_KIT_JAVA_OPTS 可按需覆盖（例如 -Xmx2g），这里有意做单词拆分
+JAVA_OPTS="${OFFICE_KIT_JAVA_OPTS:--Xmx1g}"
+
+exec "${JAVA}" ${JAVA_OPTS} \
+  -Dfile.encoding=UTF-8 \
+  -Dstdout.encoding=UTF-8 \
+  -Dstderr.encoding=UTF-8 \
+  -Dsun.jnu.encoding=UTF-8 \
+  -Djava.awt.headless=true \
+  -Djava.io.tmpdir="${TMP_DIR}" \
+  -Dofdkit.home="${MODULE_DIR}" \
+  -cp "${CLASSES}:${JARS}/*" \
+  ofdkit.Main "$@"

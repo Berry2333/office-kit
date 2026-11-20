@@ -1,0 +1,80 @@
+#!/bin/bash
+# office-kit — 离线办公文档工具箱（Word/Excel/PPT · PDF · OFD · OCR · 语音）
+# 分发形态：仓库直接运行 / AppImage 挂载运行。
+set -u
+
+KIT_VERSION="1.0.0"
+
+# ---------------------------------------------------------------------------
+# 定位根目录：AppImage 由 AppRun 导出 OFFICE_KIT_ROOT；仓库运行时取脚本上级。
+# ---------------------------------------------------------------------------
+if [ -n "${OFFICE_KIT_ROOT:-}" ] && [ -d "${OFFICE_KIT_ROOT}/modules" ]; then
+  KIT_ROOT="${OFFICE_KIT_ROOT}"
+else
+  _self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+  KIT_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"
+fi
+export OFFICE_KIT_ROOT="${KIT_ROOT}"
+export OFFICE_KIT_RUNTIME="${OFFICE_KIT_RUNTIME:-${KIT_ROOT}/runtime}"
+
+: "${OFFICE_KIT_DATA:=${XDG_DATA_HOME:-${HOME}/.local/share}/office-kit}"
+export OFFICE_KIT_DATA
+export OFFICE_KIT_CACHE="${OFFICE_KIT_CACHE:-${OFFICE_KIT_DATA}/cache}"
+export OFFICE_KIT_LOGS="${OFFICE_KIT_LOGS:-${OFFICE_KIT_DATA}/logs}"
+export OFFICE_KIT_LANG="${OFFICE_KIT_LANG:-zh_CN}"
+export OFFICE_KIT_PY="${OFFICE_KIT_PY:-${OFFICE_KIT_RUNTIME}/python/bin/python3}"
+export OFFICE_KIT_PY_SITE="${OFFICE_KIT_PY_SITE:-${OFFICE_KIT_RUNTIME}/python/lib/python3.12/site-packages}"
+export OFFICE_KIT_JAVA="${OFFICE_KIT_JAVA:-${OFFICE_KIT_RUNTIME}/jre/bin/java}"
+export OFFICE_KIT_NODE="${OFFICE_KIT_NODE:-${OFFICE_KIT_RUNTIME}/node/bin/node}"
+export OFFICE_KIT_NODE_MODULES="${OFFICE_KIT_NODE_MODULES:-${OFFICE_KIT_RUNTIME}/node/lib/node_modules}"
+export OFFICE_KIT_STIRLING="${OFFICE_KIT_STIRLING:-${OFFICE_KIT_RUNTIME}/stirling}"
+export OFFICE_KIT_MODELS="${OFFICE_KIT_MODELS:-${OFFICE_KIT_RUNTIME}/models}"
+
+mkdir -p "${OFFICE_KIT_DATA}" "${OFFICE_KIT_CACHE}" "${OFFICE_KIT_LOGS}" 2>/dev/null || true
+
+usage() {
+  cat <<'EOF'
+office-kit — 完全离线的办公文档 / PDF / OFD / OCR / 语音工具箱
+
+用法:
+  office-kit <分组> <子命令> [参数...]
+  office-kit --version | --help | list
+
+分组:
+  office   Word / Excel / PowerPoint 转换、渲染、公式重算、结构化生成
+  pdf      PDF 合并、拆分、旋转、加密、水印、抽文本、转图片、OCR
+  ofd      国产版式文档 OFD 解析、转 PDF / 图片 / 文本 / HTML、合并
+  ocr      图片 / PDF 扫描件文字识别（RapidOCR + 可选 tesseract）
+  asr      语音转写（SenseVoiceSmall）、麦克风听写、语音输入
+
+示例:
+  office-kit office convert --input 报告.docx --output 报告.pdf
+  office-kit pdf run merge --input a.pdf --input b.pdf --output ab.pdf
+  office-kit ofd info --input 发票.ofd --json
+  office-kit ocr image --input 扫描.png --lang chi_sim+eng --json
+  office-kit asr file --input 会议.wav --format srt
+
+每个分组都有自己的 --help:
+  office-kit pdf --help
+EOF
+}
+
+cmd="${1:-}"
+case "${cmd}" in
+  ""|-h|--help|help)
+    usage; exit 0 ;;
+  -V|--version)
+    echo "office-kit ${KIT_VERSION}"; exit 0 ;;
+  list)
+    printf 'office\npdf\nofd\nocr\nasr\n'; exit 0 ;;
+esac
+
+shift
+entry="${KIT_ROOT}/modules/${cmd}/bin/${cmd}"
+if [ ! -x "${entry}" ]; then
+  echo "office-kit: 未知分组 '${cmd}' 或该模块未安装（缺少 ${entry}）" >&2
+  echo "可用分组：office pdf ofd ocr asr（office-kit list）" >&2
+  exit 2
+fi
+
+exec "${entry}" "$@"

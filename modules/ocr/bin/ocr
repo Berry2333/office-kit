@@ -1,0 +1,36 @@
+#!/bin/bash
+# office-kit ocr 模块入口：图片 / PDF / 批量目录的文字识别。
+#
+# shebang 不能写死 $OFFICE_KIT_PY（会随分发路径变化），因此用 bash 包装，
+# 解析根目录后 exec 自带的 CPython 3.12。
+set -u
+
+SELF="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+LIB_DIR="$(cd "$(dirname "$SELF")/../lib" && pwd)" || exit 1
+
+if [ -n "${OFFICE_KIT_ROOT:-}" ] && [ -d "${OFFICE_KIT_ROOT}/modules" ]; then
+  KIT_ROOT="${OFFICE_KIT_ROOT}"
+else
+  KIT_ROOT="$(cd "${LIB_DIR}/../../.." && pwd)"
+fi
+export OFFICE_KIT_ROOT="${KIT_ROOT}"
+export OFFICE_KIT_RUNTIME="${OFFICE_KIT_RUNTIME:-${KIT_ROOT}/runtime}"
+export OFFICE_KIT_PY="${OFFICE_KIT_PY:-${OFFICE_KIT_RUNTIME}/python/bin/python3}"
+export OFFICE_KIT_STIRLING="${OFFICE_KIT_STIRLING:-${OFFICE_KIT_RUNTIME}/stirling}"
+: "${OFFICE_KIT_DATA:=${XDG_DATA_HOME:-${HOME}/.local/share}/office-kit}"
+export OFFICE_KIT_DATA
+export OFFICE_KIT_CACHE="${OFFICE_KIT_CACHE:-${OFFICE_KIT_DATA}/cache}"
+
+if [ ! -x "${OFFICE_KIT_PY}" ]; then
+  echo "[ocr] 找不到运行时 Python：${OFFICE_KIT_PY}" >&2
+  echo "[ocr] 修复: 确认 runtime/python 已就位，或设置 OFFICE_KIT_PY 指向 CPython 3.12" >&2
+  exit 3
+fi
+
+# 代码在 lib/ 下互相 import，需把 lib 放进模块搜索路径
+export PYTHONPATH="${LIB_DIR}${PYTHONPATH:+:${PYTHONPATH}}"
+export PYTHONIOENCODING="utf-8"
+# 不往模块目录写 .pyc：读写只发生在 $OFFICE_KIT_DATA 与用户指定输出路径
+export PYTHONDONTWRITEBYTECODE=1
+
+exec "${OFFICE_KIT_PY}" "${LIB_DIR}/ocr_cli.py" "$@"

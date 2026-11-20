@@ -1,0 +1,34 @@
+{
+  "title": "离线办公套件汇报",
+  "author": "office-kit",
+  "slideSize": "16:9",
+  "font": "Noto Sans CJK SC",
+  "cover": {
+    "title": "离线办公套件",
+    "subtitle": "Word / Excel / PowerPoint 全链路"
+  },
+  "slides": [
+    {
+      "title": "能力概览",
+      "bullets": [
+        "转换 PDF",
+        "渲染 PNG",
+        {"text": "按页 / 按区域", "level": 1},
+        "公式重算"
+      ],
+      "notes": "讲稿：先总览，再演示具体命令。"
+    },
+    {
+      "title": "关键指标",
+      "table": {
+        "headers": ["指标", "数值"],
+        "rows": [["转换成功率", "100%"], ["是否联网", "否"]],
+        "widths": [5, 5]
+      }
+    },
+    {
+      "title": "下一步",
+      "bullets": ["补齐 PDF 工具", "完善技能文档"]
+    }
+  ]
+}

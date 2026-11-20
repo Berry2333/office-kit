@@ -1,0 +1,47 @@
+#!/bin/bash
+# asr — office-kit 离线语音识别入口（bash 包装，exec 到 $OFFICE_KIT_PY）
+#
+# 可单独执行，也可由 bin/office-kit 调用：
+#   office-kit asr file --input 会议.wav --format srt
+#   ./modules/asr/bin/asr models --json
+set -u
+
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+MOD_DIR="$(cd "$(dirname "$_self")/.." && pwd)"
+
+# 与 office-kit 相同的根目录/运行时回退逻辑：模块被单独执行时也能工作。
+if [ -n "${OFFICE_KIT_ROOT:-}" ] && [ -d "${OFFICE_KIT_ROOT}/modules" ]; then
+  KIT_ROOT="${OFFICE_KIT_ROOT}"
+else
+  KIT_ROOT="$(cd "${MOD_DIR}/../.." && pwd)"
+fi
+export OFFICE_KIT_ROOT="${KIT_ROOT}"
+export OFFICE_KIT_RUNTIME="${OFFICE_KIT_RUNTIME:-${KIT_ROOT}/runtime}"
+
+: "${OFFICE_KIT_DATA:=${XDG_DATA_HOME:-${HOME}/.local/share}/office-kit}"
+export OFFICE_KIT_DATA
+export OFFICE_KIT_CACHE="${OFFICE_KIT_CACHE:-${OFFICE_KIT_DATA}/cache}"
+export OFFICE_KIT_LOGS="${OFFICE_KIT_LOGS:-${OFFICE_KIT_DATA}/logs}"
+export OFFICE_KIT_MODELS="${OFFICE_KIT_MODELS:-${OFFICE_KIT_RUNTIME}/models}"
+export OFFICE_KIT_PY="${OFFICE_KIT_PY:-${OFFICE_KIT_RUNTIME}/python/bin/python3}"
+export OFFICE_KIT_PY_SITE="${OFFICE_KIT_PY_SITE:-${OFFICE_KIT_RUNTIME}/python/lib/python3.12/site-packages}"
+
+mkdir -p "${OFFICE_KIT_CACHE}/asr" 2>/dev/null || true
+
+PY="${OFFICE_KIT_PY}"
+if [ ! -x "${PY}" ]; then
+  PY="${OFFICE_KIT_RUNTIME}/python/bin/python3"
+fi
+if [ ! -x "${PY}" ]; then
+  PY="$(command -v python3 2>/dev/null || true)"
+fi
+if [ -z "${PY}" ] || [ ! -x "${PY}" ]; then
+  echo "asr: 未找到可用的 Python 3 运行时（\$OFFICE_KIT_PY）" >&2
+  echo "修复：确认 runtime/python/bin/python3 存在，或设置 OFFICE_KIT_PY 指向 Python 3.8+。" >&2
+  exit 3
+fi
+
+# 保证中文路径/文本与 JSON 输出使用 UTF-8（目标机 locale 可能是 C）。
+export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8}"
+
+exec "${PY}" "${MOD_DIR}/lib/asr_cli.py" "$@"
